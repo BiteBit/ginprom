@@ -1,4 +1,4 @@
-package ginprometheus
+package ginprom
 
 import (
 	"os"
