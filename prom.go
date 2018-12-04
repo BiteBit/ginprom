@@ -27,11 +27,11 @@ type (
 )
 
 var (
-	labelNames = []string{"code", "errcode", "method", "url", "handler"}
+	labelNames = []string{"code", "retcode", "method", "url", "handler"}
 )
 
 // New a prom instance
-func New(namesapce, subSystem string) *Prom {
+func New(namesapce, subSystem string, ...labels string) *Prom {
 	prom := &Prom{
 		namespace: namesapce,
 		subsystem: subSystem,
@@ -39,11 +39,36 @@ func New(namesapce, subSystem string) *Prom {
 
 	prom.requestURLMappingFn = urlMapping
 
+	labelCount := len(labels)
+	if labelCount > 0 {
+		labelHttpRequestTotal := labels[0]
+	} else {
+		labelHttpRequestTotal := "http_request_total"
+	}
+
+	if labelCount > 1 {
+		labelHttpRequestDurationSeconds := labels[1]
+	} else {
+		labelHttpRequestDurationSeconds := "http_request_total"
+	}
+
+	if labelCount > 2 {
+		labelHttpRequestSizeBytes := labels[2]
+	} else {
+		labelHttpRequestSizeBytes := "http_request_total"
+	}
+
+	if labelCount > 3 {
+		labelHttpResponseSizeBytes := labels[3]
+	} else {
+		labelHttpResponseSizeBytes := "http_request_total"
+	}
+
 	prom.reqCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: prom.namespace,
 			Subsystem: prom.subsystem,
-			Name:      "http_request_total",
+			Name:      labelHttpRequestTotal,
 			Help:      "How many HTTP requests processed, partitioned by status code and HTTP method.",
 		},
 		labelNames,
@@ -53,7 +78,7 @@ func New(namesapce, subSystem string) *Prom {
 		prometheus.SummaryOpts{
 			Namespace: prom.namespace,
 			Subsystem: prom.subsystem,
-			Name:      "http_request_duration_seconds",
+			Name:      labelHttpRequestDurationSeconds,
 			Help:      "The HTTP request latencies in seconds.",
 		},
 		labelNames,
@@ -63,7 +88,7 @@ func New(namesapce, subSystem string) *Prom {
 		prometheus.SummaryOpts{
 			Namespace: prom.namespace,
 			Subsystem: prom.subsystem,
-			Name:      "http_request_size_bytes",
+			Name:      labelHttpRequestSizeBytes,
 			Help:      "The HTTP request sizes in bytes.",
 		},
 		labelNames,
@@ -73,7 +98,7 @@ func New(namesapce, subSystem string) *Prom {
 		prometheus.SummaryOpts{
 			Namespace: prom.namespace,
 			Subsystem: prom.subsystem,
-			Name:      "http_response_size_bytes",
+			Name:      labelHttpResponseSizeBytes,
 			Help:      "The HTTP response sizes in bytes.",
 		},
 		labelNames,
@@ -129,8 +154,8 @@ func (prom *Prom) Handler() gin.HandlerFunc {
 		status := strconv.Itoa(ctx.Writer.Status())
 		resSize := float64(ctx.Writer.Size())
 		url := prom.requestURLMappingFn(ctx)
-		errcode := strconv.Itoa(ctx.GetInt("errcode"))
-		labels := []string{status, errcode, ctx.Request.Method, url, ctx.HandlerName()}
+		retcode := strconv.Itoa(ctx.GetInt("retcode"))
+		labels := []string{status, retcode, ctx.Request.Method, url, ctx.HandlerName()}
 
 		prom.reqCounter.WithLabelValues(labels...).Inc()
 		prom.reqSizeSummary.WithLabelValues(labels...).Observe(reqSize)
